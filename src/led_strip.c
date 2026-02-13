@@ -7,12 +7,12 @@
 #include "esp_rom_sys.h"
 
 #include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 
 #define TAG "led_strip_core"
 
 // ==================================================
 // WS2812 timing (nanoseconds)
+// RMT resolution = 10 MHz → 1 tick = 100 ns
 // ==================================================
 #define T0H_NS   400
 #define T0L_NS   850
@@ -26,7 +26,7 @@
 #define CHECK_ARG(x) do { if (!(x)) return ESP_ERR_INVALID_ARG; } while (0)
 
 // ==================================================
-// Encode pixel (GRB only ? core layer)
+// RAW GRB encoder (CORE ONLY)
 // ==================================================
 static inline void encode_pixel(uint8_t *dst, rgb_t c)
 {
@@ -77,7 +77,7 @@ esp_err_t led_strip_core_init(led_strip_t *strip)
     CHECK(rmt_new_bytes_encoder(&enc_cfg, &strip->encoder));
     CHECK(rmt_enable(strip->channel));
 
-    ESP_LOGI(TAG, "Core initialized");
+    ESP_LOGI(TAG, "LED strip core initialized");
     return ESP_OK;
 }
 
@@ -131,9 +131,13 @@ esp_err_t led_strip_core_refresh(led_strip_t *strip)
 }
 
 // ==================================================
-// CORE SET PIXEL
+// CORE SET PIXEL (RAW)
 // ==================================================
-esp_err_t led_strip_core_set_pixel(led_strip_t *strip, size_t index, rgb_t c)
+esp_err_t led_strip_core_set_pixel(
+    led_strip_t *strip,
+    size_t index,
+    rgb_t c
+)
 {
     CHECK_ARG(strip && strip->buf && index < strip->length);
     encode_pixel(&strip->buf[index * 3], c);
