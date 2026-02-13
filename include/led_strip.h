@@ -9,7 +9,7 @@
 #include "esp_err.h"
 #include "color.h"
 
-// PUBLIC API comes from helper layer
+// PUBLIC API ? helper layer
 #include "led_strip_func.h"
 
 #ifdef __cplusplus
@@ -39,9 +39,9 @@ typedef struct led_strip_t {
     uint8_t              *buf;
 } led_strip_t;
 
-/* =========================
-   CORE (PRIVATE ? DO NOT USE)
-   ========================= */
+/* ==================================================
+   CORE (PRIVATE ? INTERNAL ONLY)
+   ================================================== */
 
 esp_err_t led_strip_core_init(led_strip_t *strip);
 esp_err_t led_strip_core_free(led_strip_t *strip);
