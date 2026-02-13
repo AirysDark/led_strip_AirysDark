@@ -1,10 +1,10 @@
-#include "led_strip_func.h"
+#include "led_strip.h"
 
 #include "led_strip.h"   // Implementation is allowed to include this
 #include <string.h>
 #include "esp_log.h"
 
-#define TAG "led_strip_func"
+#define TAG "led_strip"
 
 // --------------------------------------------------
 // Internal state
@@ -32,7 +32,7 @@ static inline rgb_t apply_brightness(rgb_t c)
 // Lifecycle
 // --------------------------------------------------
 
-void led_strip_func_init(led_strip_t *strip)
+void led_strip_init(led_strip_t *strip)
 {
     if (!strip)
         return;
@@ -40,19 +40,19 @@ void led_strip_func_init(led_strip_t *strip)
     ESP_LOGI(TAG, "Helper layer ready");
 }
 
-void led_strip_func_deinit(led_strip_t *strip)
+void led_strip_deinit(led_strip_t *strip)
 {
     if (!strip)
         return;
 
-    led_strip_func_clear(strip);
+    led_strip_clear(strip);
 }
 
 // --------------------------------------------------
 // Output helpers
 // --------------------------------------------------
 
-void led_strip_func_flush(led_strip_t *strip)
+void led_strip_flush(led_strip_t *strip)
 {
     if (!strip)
         return;
@@ -60,7 +60,7 @@ void led_strip_func_flush(led_strip_t *strip)
     led_strip_flush(strip);
 }
 
-void led_strip_func_clear(led_strip_t *strip)
+void led_strip_clear(led_strip_t *strip)
 {
     if (!strip)
         return;
@@ -77,7 +77,7 @@ void led_strip_func_clear(led_strip_t *strip)
 // Pixel helpers
 // --------------------------------------------------
 
-void led_strip_func_set_pixel(
+void led_strip_set_pixel(
     led_strip_t *strip,
     size_t index,
     rgb_t color
@@ -90,7 +90,7 @@ void led_strip_func_set_pixel(
     led_strip_set_pixel(strip, index, scaled);
 }
 
-void led_strip_func_fill(
+void led_strip_fill(
     led_strip_t *strip,
     rgb_t color
 )
@@ -110,12 +110,12 @@ void led_strip_func_fill(
 // Brightness control
 // --------------------------------------------------
 
-void led_strip_func_set_brightness(uint8_t level)
+void led_strip_set_brightness(uint8_t level)
 {
     g_brightness = level;
 }
 
-uint8_t led_strip_func_get_brightness(void)
+uint8_t led_strip_get_brightness(void)
 {
     return g_brightness;
 }
