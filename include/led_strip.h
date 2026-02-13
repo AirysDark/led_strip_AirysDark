@@ -9,6 +9,9 @@
 #include "esp_err.h"
 #include "color.h"
 
+// ? REQUIRED: helper layer is explicitly included
+#include "led_strip_func.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -32,7 +35,7 @@ typedef enum {
 // ==================================================
 // Strip descriptor (RMT TX based)
 // ==================================================
-typedef struct {
+typedef struct led_strip_t {
     led_strip_type_t      type;
     led_strip_order_t     order;
     uint8_t               brightness;   // 0?255 (255 = full)
@@ -42,11 +45,11 @@ typedef struct {
     rmt_channel_handle_t  channel;
     rmt_encoder_handle_t  encoder;
 
-    uint8_t              *buf;           // length * 3 bytes (GRB/RGB)
+    uint8_t              *buf;           // length * 3 bytes
 } led_strip_t;
 
 // ==================================================
-// Core API
+// Core API (hardware layer)
 // ==================================================
 esp_err_t led_strip_init(led_strip_t *strip);
 esp_err_t led_strip_free(led_strip_t *strip);

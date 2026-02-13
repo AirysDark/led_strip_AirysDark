@@ -10,35 +10,32 @@
 extern "C" {
 #endif
 
+// Forward declaration ONLY (no include)
+typedef struct led_strip_t led_strip_t;
+
 /*
     High-level helpers for led_strip_AirysDark
 
-    - Safe wrappers around core driver
-    - Centralized flush / clear logic
-    - Brightness scaling support
+    - Brightness scaling
+    - Safe wrappers
+    - Centralized refresh / clear
 */
 
-// Forward declaration (NO include!)
-typedef struct led_strip_t led_strip_t;
-
-// --------------------------------------------------
-// Lifecycle
-// --------------------------------------------------
-
+// ==================================================
+// Lifecycle (public API)
+// ==================================================
 void led_strip_init(led_strip_t *strip);
-void led_strip_deinit(led_strip_t *strip);
+void led_strip_free(led_strip_t *strip);
 
-// --------------------------------------------------
+// ==================================================
 // Output helpers
-// --------------------------------------------------
-
-void led_strip_flush(led_strip_t *strip);
+// ==================================================
+void led_strip_refresh(led_strip_t *strip);
 void led_strip_clear(led_strip_t *strip);
 
-// --------------------------------------------------
+// ==================================================
 // Pixel helpers
-// --------------------------------------------------
-
+// ==================================================
 void led_strip_set_pixel(
     led_strip_t *strip,
     size_t index,
@@ -50,11 +47,10 @@ void led_strip_fill(
     rgb_t color
 );
 
-// --------------------------------------------------
+// ==================================================
 // Brightness (software scaling)
-// --------------------------------------------------
-
-void led_strip_set_brightness(uint8_t level); // 0?255
+// ==================================================
+void    led_strip_set_brightness(uint8_t level); // 0?255
 uint8_t led_strip_get_brightness(void);
 
 #ifdef __cplusplus

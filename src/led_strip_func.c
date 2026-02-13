@@ -1,21 +1,19 @@
-#include "led_strip.h"
+#include "led_strip_func.h"
+#include "led_strip.h"   // core driver (for *_core calls)
 
-#include "led_strip.h"   // Implementation is allowed to include this
 #include <string.h>
 #include "esp_log.h"
 
-#define TAG "led_strip"
+#define TAG "led_strip_func"
 
-// --------------------------------------------------
+// ==================================================
 // Internal state
-// --------------------------------------------------
-
+// ==================================================
 static uint8_t g_brightness = 255; // full brightness
 
-// --------------------------------------------------
+// ==================================================
 // Helpers
-// --------------------------------------------------
-
+// ==================================================
 static inline rgb_t apply_brightness(rgb_t c)
 {
     if (g_brightness == 255)
@@ -28,36 +26,35 @@ static inline rgb_t apply_brightness(rgb_t c)
     return out;
 }
 
-// --------------------------------------------------
-// Lifecycle
-// --------------------------------------------------
-
+// ==================================================
+// Lifecycle (PUBLIC API)
+// ==================================================
 void led_strip_init(led_strip_t *strip)
 {
     if (!strip)
         return;
 
-    ESP_LOGI(TAG, "Helper layer ready");
+    ESP_LOGI(TAG, "LED strip helper layer active");
 }
 
-void led_strip_deinit(led_strip_t *strip)
+void led_strip_free(led_strip_t *strip)
 {
     if (!strip)
         return;
 
     led_strip_clear(strip);
+    led_strip_free_core(strip);
 }
 
-// --------------------------------------------------
+// ==================================================
 // Output helpers
-// --------------------------------------------------
-
-void led_strip_flush(led_strip_t *strip)
+// ==================================================
+void led_strip_refresh(led_strip_t *strip)
 {
     if (!strip)
         return;
 
-    led_strip_flush(strip);
+    led_strip_refresh_core(strip);
 }
 
 void led_strip_clear(led_strip_t *strip)
@@ -70,13 +67,12 @@ void led_strip_clear(led_strip_t *strip)
     for (size_t i = 0; i < strip->length; i++)
         led_strip_set_pixel(strip, i, black);
 
-    led_strip_flush(strip);
+    led_strip_refresh(strip);
 }
 
-// --------------------------------------------------
+// ==================================================
 // Pixel helpers
-// --------------------------------------------------
-
+// ==================================================
 void led_strip_set_pixel(
     led_strip_t *strip,
     size_t index,
@@ -87,7 +83,7 @@ void led_strip_set_pixel(
         return;
 
     rgb_t scaled = apply_brightness(color);
-    led_strip_set_pixel(strip, index, scaled);
+    led_strip_set_pixel_core(strip, index, scaled);
 }
 
 void led_strip_fill(
@@ -101,15 +97,14 @@ void led_strip_fill(
     rgb_t scaled = apply_brightness(color);
 
     for (size_t i = 0; i < strip->length; i++)
-        led_strip_set_pixel(strip, i, scaled);
+        led_strip_set_pixel_core(strip, i, scaled);
 
-    led_strip_flush(strip);
+    led_strip_refresh(strip);
 }
 
-// --------------------------------------------------
+// ==================================================
 // Brightness control
-// --------------------------------------------------
-
+// ==================================================
 void led_strip_set_brightness(uint8_t level)
 {
     g_brightness = level;
