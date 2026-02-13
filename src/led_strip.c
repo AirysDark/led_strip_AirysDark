@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include "esp_log.h"
-
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -12,7 +11,6 @@
 
 // ==================================================
 // WS2812 timing (nanoseconds)
-// RMT resolution = 10 MHz ? 1 tick = 100 ns
 // ==================================================
 #define T0H_NS   400
 #define T0L_NS   850
@@ -26,7 +24,7 @@
 #define CHECK_ARG(x) do { if (!(x)) return ESP_ERR_INVALID_ARG; } while (0)
 
 // ==================================================
-// Encode pixel (GRB only ? helper handles order)
+// Encode pixel (RAW GRB ? helper handles logic)
 // ==================================================
 static inline void encode_pixel(uint8_t *dst, rgb_t c)
 {
@@ -36,7 +34,7 @@ static inline void encode_pixel(uint8_t *dst, rgb_t c)
 }
 
 // ==================================================
-// Reset symbol (static, persistent)
+// Reset symbol (preserved)
 // ==================================================
 static const rmt_symbol_word_t reset_symbol = {
     .level0 = 0,
@@ -56,22 +54,16 @@ esp_err_t led_strip_core_init(led_strip_t *strip)
     if (!strip->buf)
         return ESP_ERR_NO_MEM;
 
-    // -----------------------------
-    // RMT TX channel
-    // -----------------------------
     rmt_tx_channel_config_t tx_cfg = {
         .gpio_num = strip->gpio,
         .clk_src = RMT_CLK_SRC_DEFAULT,
-        .resolution_hz = 10 * 1000 * 1000, // 10 MHz
+        .resolution_hz = 10 * 1000 * 1000,
         .mem_block_symbols = 64,
         .trans_queue_depth = 4,
     };
 
     CHECK(rmt_new_tx_channel(&tx_cfg, &strip->channel));
 
-    // -----------------------------
-    // WS2812 byte encoder
-    // -----------------------------
     rmt_bytes_encoder_config_t bytes_cfg = {
         .bit0 = {
             .level0 = 1,
@@ -92,15 +84,11 @@ esp_err_t led_strip_core_init(led_strip_t *strip)
 
     CHECK(rmt_new_bytes_encoder(&bytes_cfg, &strip->bytes_encoder));
 
-    // -----------------------------
-    // Reset encoder (WS2812 latch)
-    // -----------------------------
     rmt_copy_encoder_config_t copy_cfg = {};
     CHECK(rmt_new_copy_encoder(&copy_cfg, &strip->reset_encoder));
 
-    // -----------------------------
-    // Composite encoder (data + reset)
-    // -----------------------------
+    (void)reset_symbol;
+
     rmt_encoder_handle_t encoders[] = {
         strip->bytes_encoder,
         strip->reset_encoder
@@ -114,7 +102,7 @@ esp_err_t led_strip_core_init(led_strip_t *strip)
     CHECK(rmt_new_composite_encoder(&comp_cfg, &strip->composite_encoder));
     CHECK(rmt_enable(strip->channel));
 
-    ESP_LOGI(TAG, "LED strip core initialized (composite encoder)");
+    ESP_LOGI(TAG, "LED strip core initialized");
     return ESP_OK;
 }
 
@@ -131,20 +119,9 @@ esp_err_t led_strip_core_free(led_strip_t *strip)
         strip->channel = NULL;
     }
 
-    if (strip->composite_encoder) {
-        rmt_del_encoder(strip->composite_encoder);
-        strip->composite_encoder = NULL;
-    }
-
-    if (strip->bytes_encoder) {
-        rmt_del_encoder(strip->bytes_encoder);
-        strip->bytes_encoder = NULL;
-    }
-
-    if (strip->reset_encoder) {
-        rmt_del_encoder(strip->reset_encoder);
-        strip->reset_encoder = NULL;
-    }
+    if (strip->composite_encoder) rmt_del_encoder(strip->composite_encoder);
+    if (strip->bytes_encoder)     rmt_del_encoder(strip->bytes_encoder);
+    if (strip->reset_encoder)     rmt_del_encoder(strip->reset_encoder);
 
     free(strip->buf);
     strip->buf = NULL;
@@ -153,7 +130,7 @@ esp_err_t led_strip_core_free(led_strip_t *strip)
 }
 
 // ==================================================
-// CORE REFRESH (DATA + RESET)
+// CORE REFRESH (sync OR async handled by helper)
 // ==================================================
 esp_err_t led_strip_core_refresh(led_strip_t *strip)
 {
@@ -176,7 +153,7 @@ esp_err_t led_strip_core_refresh(led_strip_t *strip)
 }
 
 // ==================================================
-// CORE SET PIXEL
+// CORE SET PIXEL (RAW)
 // ==================================================
 esp_err_t led_strip_core_set_pixel(led_strip_t *strip, size_t index, rgb_t c)
 {

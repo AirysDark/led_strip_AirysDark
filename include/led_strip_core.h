@@ -36,6 +36,10 @@ esp_err_t led_strip_core_free(led_strip_t *strip);
 --------------------------------------------------*/
 esp_err_t led_strip_core_refresh(led_strip_t *strip);
 
+/* === PART 7: ASYNC SUPPORT === */
+esp_err_t led_strip_core_refresh_async(led_strip_t *strip);
+bool      led_strip_core_is_busy(led_strip_t *strip);
+
 /* -------------------------------------------------
    Core pixel write (RAW BYTES)
 --------------------------------------------------*/

@@ -1,5 +1,5 @@
 #include "led_strip_core.h"
-#include "led_strip.h"   /* for led_strip_t definition */
+#include "led_strip.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -8,13 +8,13 @@
 #include "esp_rom_sys.h"
 
 #include "freertos/FreeRTOS.h"
-#include "freertos/task.h"   // <-- REQUIRED for portMAX_DELAY
+#include "freertos/task.h"
 
 #define TAG "led_strip_core"
 
 /* =================================================
    WS2812 timing (nanoseconds)
-   RMT resolution = 10 MHz ? 1 tick = 100 ns
+   RMT resolution = 10 MHz -> 1 tick = 100 ns
 ==================================================*/
 #define T0H_NS   400
 #define T0L_NS   850
@@ -44,14 +44,18 @@ esp_err_t led_strip_core_init(led_strip_t *strip)
 {
     CHECK_ARG(strip && strip->length > 0);
 
-    strip->buf = calloc(strip->length * 3, 1);
+    /* Default: RGB = 3 bytes */
+    if (strip->bytes_per_pixel == 0)
+        strip->bytes_per_pixel = 3;
+
+    strip->buf = calloc(strip->length * strip->bytes_per_pixel, 1);
     if (!strip->buf)
         return ESP_ERR_NO_MEM;
 
     rmt_tx_channel_config_t tx_cfg = {
         .gpio_num = strip->gpio,
         .clk_src = RMT_CLK_SRC_DEFAULT,
-        .resolution_hz = 10 * 1000 * 1000, /* 10 MHz */
+        .resolution_hz = 10 * 1000 * 1000,
         .mem_block_symbols = 64,
         .trans_queue_depth = 4,
     };
@@ -106,7 +110,7 @@ esp_err_t led_strip_core_free(led_strip_t *strip)
 }
 
 /* =================================================
-   CORE REFRESH
+   CORE REFRESH (BLOCKING)
 ==================================================*/
 esp_err_t led_strip_core_refresh(led_strip_t *strip)
 {
@@ -120,7 +124,7 @@ esp_err_t led_strip_core_refresh(led_strip_t *strip)
         strip->channel,
         strip->encoder,
         strip->buf,
-        strip->length * 3,
+        strip->length * strip->bytes_per_pixel,
         &cfg
     ));
 
@@ -128,6 +132,32 @@ esp_err_t led_strip_core_refresh(led_strip_t *strip)
     esp_rom_delay_us(RESET_US);
 
     return ESP_OK;
+}
+
+/* =================================================
+   PART 7: CORE ASYNC REFRESH
+==================================================*/
+esp_err_t led_strip_core_refresh_async(led_strip_t *strip)
+{
+    CHECK_ARG(strip && strip->buf);
+
+    rmt_transmit_config_t cfg = {
+        .loop_count = 0
+    };
+
+    return rmt_transmit(
+        strip->channel,
+        strip->encoder,
+        strip->buf,
+        strip->length * strip->bytes_per_pixel,
+        &cfg
+    );
+}
+
+bool led_strip_core_is_busy(led_strip_t *strip)
+{
+    if (!strip) return false;
+    return rmt_tx_wait_all_done(strip->channel, 0) == ESP_ERR_TIMEOUT;
 }
 
 /* =================================================
@@ -140,6 +170,6 @@ esp_err_t led_strip_core_set_pixel(
 )
 {
     CHECK_ARG(strip && strip->buf && index < strip->length);
-    encode_grb(&strip->buf[index * 3], color);
+    encode_grb(&strip->buf[index * strip->bytes_per_pixel], color);
     return ESP_OK;
 }

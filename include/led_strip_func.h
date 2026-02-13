@@ -38,6 +38,26 @@ void led_strip_fill(
 void    led_strip_set_brightness(uint8_t level); // 0?255
 uint8_t led_strip_get_brightness(void);
 
+// ==================================================
+// Part 6 ? Gamma correction
+// ==================================================
+void led_strip_enable_gamma(bool enable);
+
+// ==================================================
+// Part 7 ? Async / non-blocking refresh
+// ==================================================
+void led_strip_refresh_async(led_strip_t *strip);
+bool led_strip_is_busy(led_strip_t *strip);
+
+// ==================================================
+// Part 8 ? RGBW support
+// ==================================================
+void led_strip_set_pixel_rgbw(
+    led_strip_t *strip,
+    size_t index,
+    rgbw_t color
+);
+
 #ifdef __cplusplus
 }
 #endif

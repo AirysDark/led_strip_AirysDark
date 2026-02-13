@@ -27,6 +27,7 @@ extern "C" {
 // ==================================================
 typedef enum {
     LED_STRIP_WS2812 = 0,
+    LED_STRIP_SK6812,          // PART 8 (RGBW-ready)
 } led_strip_type_t;
 
 // ==================================================
@@ -46,8 +47,11 @@ typedef struct led_strip_t {
     led_strip_type_t      type;
     led_strip_order_t     order;
 
-    // Brightness (0?255), applied by helper layer
+    // Brightness (0?255) ? helper applies
     uint8_t               brightness;
+
+    // PART 8: RGBW support
+    bool                  is_rgbw;
 
     size_t                length;
     gpio_num_t            gpio;
