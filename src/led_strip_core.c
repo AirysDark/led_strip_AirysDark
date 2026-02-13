@@ -28,7 +28,7 @@
 #define CHECK_ARG(x) do { if (!(x)) return ESP_ERR_INVALID_ARG; } while (0)
 
 /* =================================================
-   Encode RAW GRB pixel (NO brightness, NO order)
+   Encode RAW GRB pixel
 ==================================================*/
 static inline void encode_grb(uint8_t *dst, rgb_t c)
 {
@@ -44,11 +44,8 @@ esp_err_t led_strip_core_init(led_strip_t *strip)
 {
     CHECK_ARG(strip && strip->length > 0);
 
-    /* Default: RGB = 3 bytes */
-    if (strip->bytes_per_pixel == 0)
-        strip->bytes_per_pixel = 3;
-
-    strip->buf = calloc(strip->length * strip->bytes_per_pixel, 1);
+    /* WS2812 = 3 bytes per pixel */
+    strip->buf = calloc(strip->length * 3, 1);
     if (!strip->buf)
         return ESP_ERR_NO_MEM;
 
@@ -78,10 +75,10 @@ esp_err_t led_strip_core_init(led_strip_t *strip)
         .flags.msb_first = true,
     };
 
-    CHECK(rmt_new_bytes_encoder(&enc_cfg, &strip->encoder));
+    CHECK(rmt_new_bytes_encoder(&enc_cfg, &strip->bytes_encoder));
     CHECK(rmt_enable(strip->channel));
 
-    ESP_LOGI(TAG, "Core initialized (RMT TX)");
+    ESP_LOGI(TAG, "LED strip core initialized");
     return ESP_OK;
 }
 
@@ -98,9 +95,9 @@ esp_err_t led_strip_core_free(led_strip_t *strip)
         strip->channel = NULL;
     }
 
-    if (strip->encoder) {
-        rmt_del_encoder(strip->encoder);
-        strip->encoder = NULL;
+    if (strip->bytes_encoder) {
+        rmt_del_encoder(strip->bytes_encoder);
+        strip->bytes_encoder = NULL;
     }
 
     free(strip->buf);
@@ -122,9 +119,9 @@ esp_err_t led_strip_core_refresh(led_strip_t *strip)
 
     CHECK(rmt_transmit(
         strip->channel,
-        strip->encoder,
+        strip->bytes_encoder,
         strip->buf,
-        strip->length * strip->bytes_per_pixel,
+        strip->length * 3,
         &cfg
     ));
 
@@ -135,7 +132,7 @@ esp_err_t led_strip_core_refresh(led_strip_t *strip)
 }
 
 /* =================================================
-   PART 7: CORE ASYNC REFRESH
+   CORE REFRESH (ASYNC)
 ==================================================*/
 esp_err_t led_strip_core_refresh_async(led_strip_t *strip)
 {
@@ -147,16 +144,21 @@ esp_err_t led_strip_core_refresh_async(led_strip_t *strip)
 
     return rmt_transmit(
         strip->channel,
-        strip->encoder,
+        strip->bytes_encoder,
         strip->buf,
-        strip->length * strip->bytes_per_pixel,
+        strip->length * 3,
         &cfg
     );
 }
 
+/* =================================================
+   CORE BUSY CHECK
+==================================================*/
 bool led_strip_core_is_busy(led_strip_t *strip)
 {
-    if (!strip) return false;
+    if (!strip)
+        return false;
+
     return rmt_tx_wait_all_done(strip->channel, 0) == ESP_ERR_TIMEOUT;
 }
 
@@ -170,6 +172,6 @@ esp_err_t led_strip_core_set_pixel(
 )
 {
     CHECK_ARG(strip && strip->buf && index < strip->length);
-    encode_grb(&strip->buf[index * strip->bytes_per_pixel], color);
+    encode_grb(&strip->buf[index * 3], color);
     return ESP_OK;
 }
