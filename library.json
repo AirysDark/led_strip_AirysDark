@@ -1,0 +1,26 @@
+{
+  "name": "led_strip_AirysDark",
+  "keywords": "led, rgb, ws2812, neopixel, rmt, esp32, esp32-s3, baremetal",
+  "description": "Custom bare-metal RGB LED strip driver for ESP32 using RMT. Supports WS2812 LEDs with brightness scaling, color order control, and low-power friendly operation.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AirysDark/led_strip_AirysDark"
+  },
+  "authors": [
+    {
+      "name": "Michael David Morrison",
+      "email": "michael.david.morrison@hotmail.com",
+      "maintainer": true
+    }
+  ],
+  "version": "2.0.0",
+  "license": "MIT",
+  "frameworks": [
+    "arduino",
+    "espidf"
+  ],
+  "platforms": [
+    "espressif32"
+  ],
+  "headers": "led_strip.h"
+}
