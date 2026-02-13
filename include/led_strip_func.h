@@ -35,7 +35,7 @@ void led_strip_fill(
 // ==================================================
 // Brightness (software scaling)
 // ==================================================
-void    led_strip_set_brightness(uint8_t level); // 0–255
+void    led_strip_set_brightness(uint8_t level); // 0?255
 uint8_t led_strip_get_brightness(void);
 
 #ifdef __cplusplus

@@ -1,6 +1,8 @@
 #include "led_strip_func.h"
 #include "led_strip.h"   // core layer access
 
+#include <stdint.h>      // <-- REQUIRED (uint16_t)
+
 // ==================================================
 // Internal state
 // ==================================================
@@ -29,6 +31,7 @@ void led_strip_init(led_strip_t *strip)
     if (!strip)
         return;
 
+    // Hardware init handled by core
     led_strip_core_init(strip);
 }
 
@@ -70,7 +73,7 @@ void led_strip_set_pixel(
     rgb_t color
 )
 {
-    if (!strip)
+    if (!strip || index >= strip->length)
         return;
 
     led_strip_core_set_pixel(strip, index, scale(color));
@@ -89,7 +92,7 @@ void led_strip_fill(
     for (size_t i = 0; i < strip->length; i++)
         led_strip_core_set_pixel(strip, i, scaled);
 
-    led_strip_refresh(strip);
+    led_strip_core_refresh(strip);
 }
 
 // ==================================================

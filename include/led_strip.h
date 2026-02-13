@@ -46,8 +46,7 @@ typedef struct led_strip_t {
     led_strip_type_t      type;
     led_strip_order_t     order;
 
-    // Brightness (0?255)
-    // Applied by helper layer, stored here for per-strip state
+    // Brightness (0?255) ? used by helper layer
     uint8_t               brightness;
 
     size_t                length;
@@ -55,14 +54,16 @@ typedef struct led_strip_t {
 
     // --- RMT core handles ---
     rmt_channel_handle_t  channel;
-    rmt_encoder_handle_t  encoder;
+    rmt_encoder_handle_t  bytes_encoder;
+    rmt_encoder_handle_t  reset_encoder;
+    rmt_encoder_handle_t  composite_encoder;
 
     // Raw pixel buffer (GRB, unscaled)
     uint8_t              *buf;   // length * 3 bytes
 } led_strip_t;
 
 /* ==================================================
-   CORE (PRIVATE ? INTERNAL USE ONLY)
+   CORE (INTERNAL ONLY)
    Helper layer calls these.
    User code MUST NOT call them directly.
    ================================================== */
