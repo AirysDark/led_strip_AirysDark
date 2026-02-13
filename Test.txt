@@ -1,17 +1,363 @@
 led_strip_core.c
 
+#include "led_strip_core.h"
+#include "led_strip.h"   /* for led_strip_t definition */
+
+#include <stdlib.h>
+#include <string.h>
+
+#include "esp_log.h"
+#include "esp_rom_sys.h"
+#include "freertos/FreeRTOS.h"
+
+#define TAG "led_strip_core"
+
+/* =================================================
+   WS2812 timing (nanoseconds)
+   RMT resolution = 10 MHz → 1 tick = 100 ns
+==================================================*/
+#define T0H_NS   400
+#define T0L_NS   850
+#define T1H_NS   800
+#define T1L_NS   450
+#define RESET_US 60
+
+#define NS_TO_TICKS(ns) ((ns) / 100)
+
+#define CHECK(x)     do { esp_err_t r = (x); if (r != ESP_OK) return r; } while (0)
+#define CHECK_ARG(x) do { if (!(x)) return ESP_ERR_INVALID_ARG; } while (0)
+
+/* =================================================
+   Encode RAW GRB pixel (NO brightness, NO order)
+==================================================*/
+static inline void encode_grb(uint8_t *dst, rgb_t c)
+{
+    dst[0] = c.g;
+    dst[1] = c.r;
+    dst[2] = c.b;
+}
+
+/* =================================================
+   CORE INIT
+==================================================*/
+esp_err_t led_strip_core_init(led_strip_t *strip)
+{
+    CHECK_ARG(strip && strip->length > 0);
+
+    strip->buf = calloc(strip->length * 3, 1);
+    if (!strip->buf)
+        return ESP_ERR_NO_MEM;
+
+    rmt_tx_channel_config_t tx_cfg = {
+        .gpio_num = strip->gpio,
+        .clk_src = RMT_CLK_SRC_DEFAULT,
+        .resolution_hz = 10 * 1000 * 1000, /* 10 MHz */
+        .mem_block_symbols = 64,
+        .trans_queue_depth = 4,
+    };
+
+    CHECK(rmt_new_tx_channel(&tx_cfg, &strip->channel));
+
+    rmt_bytes_encoder_config_t enc_cfg = {
+        .bit0 = {
+            .level0 = 1,
+            .duration0 = NS_TO_TICKS(T0H_NS),
+            .level1 = 0,
+            .duration1 = NS_TO_TICKS(T0L_NS),
+        },
+        .bit1 = {
+            .level0 = 1,
+            .duration0 = NS_TO_TICKS(T1H_NS),
+            .level1 = 0,
+            .duration1 = NS_TO_TICKS(T1L_NS),
+        },
+        .flags.msb_first = true,
+    };
+
+    CHECK(rmt_new_bytes_encoder(&enc_cfg, &strip->encoder));
+    CHECK(rmt_enable(strip->channel));
+
+    ESP_LOGI(TAG, "Core initialized (RMT TX)");
+    return ESP_OK;
+}
+
+/* =================================================
+   CORE FREE
+==================================================*/
+esp_err_t led_strip_core_free(led_strip_t *strip)
+{
+    CHECK_ARG(strip);
+
+    if (strip->channel) {
+        rmt_disable(strip->channel);
+        rmt_del_channel(strip->channel);
+        strip->channel = NULL;
+    }
+
+    if (strip->encoder) {
+        rmt_del_encoder(strip->encoder);
+        strip->encoder = NULL;
+    }
+
+    free(strip->buf);
+    strip->buf = NULL;
+
+    return ESP_OK;
+}
+
+/* =================================================
+   CORE REFRESH
+==================================================*/
+esp_err_t led_strip_core_refresh(led_strip_t *strip)
+{
+    CHECK_ARG(strip && strip->buf);
+
+    rmt_transmit_config_t cfg = {
+        .loop_count = 0
+    };
+
+    CHECK(rmt_transmit(
+        strip->channel,
+        strip->encoder,
+        strip->buf,
+        strip->length * 3,
+        &cfg
+    ));
+
+    CHECK(rmt_tx_wait_all_done(strip->channel, portMAX_DELAY));
+    esp_rom_delay_us(RESET_US);
+
+    return ESP_OK;
+}
+
+/* =================================================
+   CORE PIXEL WRITE (RAW)
+==================================================*/
+esp_err_t led_strip_core_set_pixel(
+    led_strip_t *strip,
+    size_t index,
+    rgb_t color
+)
+{
+    CHECK_ARG(strip && strip->buf && index < strip->length);
+    encode_grb(&strip->buf[index * 3], color);
+    return ESP_OK;
+}
 
 
 led_strip_core.h
 
+#pragma once
 
-led_strip.c
+#include <stddef.h>
+#include <stdint.h>
+#include <stdbool.h>
 
+#include "driver/gpio.h"
+#include "driver/rmt_tx.h"
+#include "esp_err.h"
+#include "color.h"
 
-led_strip.h
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/*
+    LED STRIP CORE (PRIVATE)
+
+    - Hardware-only RMT TX driver
+    - No brightness logic
+    - No color order logic
+    - No public API exposure
+*/
+
+/* Forward declaration only */
+typedef struct led_strip_t led_strip_t;
+
+/* -------------------------------------------------
+   Core lifecycle
+--------------------------------------------------*/
+
+esp_err_t led_strip_core_init(led_strip_t *strip);
+esp_err_t led_strip_core_free(led_strip_t *strip);
+
+/* -------------------------------------------------
+   Core output
+--------------------------------------------------*/
+
+esp_err_t led_strip_core_refresh(led_strip_t *strip);
+
+/* -------------------------------------------------
+   Core pixel write (RAW BYTES)
+--------------------------------------------------*/
+
+esp_err_t led_strip_core_set_pixel(
+    led_strip_t *strip,
+    size_t index,
+    rgb_t color
+);
+
+#ifdef __cplusplus
+}
+#endif
 
 
 led_strip_func.c
 
+#include "led_strip_func.h"
+#include "led_strip.h"   // core layer access
+
+// ==================================================
+// Internal state
+// ==================================================
+static uint8_t g_brightness = 255; // full brightness
+
+// ==================================================
+// Helpers
+// ==================================================
+static inline rgb_t scale(rgb_t c)
+{
+    if (g_brightness == 255)
+        return c;
+
+    rgb_t out;
+    out.r = (uint16_t)c.r * g_brightness / 255;
+    out.g = (uint16_t)c.g * g_brightness / 255;
+    out.b = (uint16_t)c.b * g_brightness / 255;
+    return out;
+}
+
+// ==================================================
+// Lifecycle
+// ==================================================
+void led_strip_init(led_strip_t *strip)
+{
+    if (!strip)
+        return;
+
+    led_strip_core_init(strip);
+}
+
+void led_strip_free(led_strip_t *strip)
+{
+    if (!strip)
+        return;
+
+    led_strip_clear(strip);
+    led_strip_core_free(strip);
+}
+
+// ==================================================
+// Output helpers
+// ==================================================
+void led_strip_refresh(led_strip_t *strip)
+{
+    if (!strip)
+        return;
+
+    led_strip_core_refresh(strip);
+}
+
+void led_strip_clear(led_strip_t *strip)
+{
+    if (!strip)
+        return;
+
+    rgb_t black = { 0, 0, 0 };
+    led_strip_fill(strip, black);
+}
+
+// ==================================================
+// Pixel helpers
+// ==================================================
+void led_strip_set_pixel(
+    led_strip_t *strip,
+    size_t index,
+    rgb_t color
+)
+{
+    if (!strip)
+        return;
+
+    led_strip_core_set_pixel(strip, index, scale(color));
+}
+
+void led_strip_fill(
+    led_strip_t *strip,
+    rgb_t color
+)
+{
+    if (!strip)
+        return;
+
+    rgb_t scaled = scale(color);
+
+    for (size_t i = 0; i < strip->length; i++)
+        led_strip_core_set_pixel(strip, i, scaled);
+
+    led_strip_refresh(strip);
+}
+
+// ==================================================
+// Brightness control
+// ==================================================
+void led_strip_set_brightness(uint8_t level)
+{
+    g_brightness = level;
+}
+
+uint8_t led_strip_get_brightness(void)
+{
+    return g_brightness;
+}
+
 
 led_strip_func.h
+
+#pragma once
+
+#include <stddef.h>
+#include <stdint.h>
+#include "color.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Forward declaration only (core struct lives in led_strip.h)
+typedef struct led_strip_t led_strip_t;
+
+// ==================================================
+// Public helper API (THIS is what app code uses)
+// ==================================================
+
+void led_strip_init(led_strip_t *strip);
+void led_strip_free(led_strip_t *strip);
+
+void led_strip_refresh(led_strip_t *strip);
+void led_strip_clear(led_strip_t *strip);
+
+void led_strip_set_pixel(
+    led_strip_t *strip,
+    size_t index,
+    rgb_t color
+);
+
+void led_strip_fill(
+    led_strip_t *strip,
+    rgb_t color
+);
+
+// ==================================================
+// Brightness (software scaling)
+// ==================================================
+void    led_strip_set_brightness(uint8_t level); // 0–255
+uint8_t led_strip_get_brightness(void);
+
+#ifdef __cplusplus
+}
+#endif
+
+
+
+update all code with full copy and pasta
