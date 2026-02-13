@@ -46,7 +46,7 @@ typedef struct led_strip_t {
     led_strip_type_t      type;
     led_strip_order_t     order;
 
-    // Brightness (0?255) ? used by helper layer
+    // Brightness (0?255), applied by helper layer
     uint8_t               brightness;
 
     size_t                length;

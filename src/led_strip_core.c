@@ -6,13 +6,15 @@
 
 #include "esp_log.h"
 #include "esp_rom_sys.h"
+
 #include "freertos/FreeRTOS.h"
+#include "freertos/task.h"   // <-- REQUIRED for portMAX_DELAY
 
 #define TAG "led_strip_core"
 
 /* =================================================
    WS2812 timing (nanoseconds)
-   RMT resolution = 10 MHz → 1 tick = 100 ns
+   RMT resolution = 10 MHz ? 1 tick = 100 ns
 ==================================================*/
 #define T0H_NS   400
 #define T0L_NS   850

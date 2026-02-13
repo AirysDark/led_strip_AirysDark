@@ -1,37 +1,55 @@
 #include "led_strip_func.h"
 #include "led_strip.h"   // core layer access
 
-#include <stdint.h>      // <-- REQUIRED (uint16_t)
+#include <stdint.h>      // uint16_t
 
 // ==================================================
-// Internal state
+// Internal state (global helper state)
 // ==================================================
 static uint8_t g_brightness = 255; // full brightness
 
 // ==================================================
 // Helpers
 // ==================================================
-static inline rgb_t scale(rgb_t c)
+static inline rgb_t scale_and_reorder(
+    led_strip_t *strip,
+    rgb_t c
+)
 {
-    if (g_brightness == 255)
-        return c;
+    // ---- brightness ----
+    if (g_brightness != 255) {
+        c.r = (uint16_t)c.r * g_brightness / 255;
+        c.g = (uint16_t)c.g * g_brightness / 255;
+        c.b = (uint16_t)c.b * g_brightness / 255;
+    }
 
-    rgb_t out;
-    out.r = (uint16_t)c.r * g_brightness / 255;
-    out.g = (uint16_t)c.g * g_brightness / 255;
-    out.b = (uint16_t)c.b * g_brightness / 255;
-    return out;
+    // ---- color order ----
+    switch (strip->order) {
+        case LED_ORDER_RGB:
+            return (rgb_t){ c.r, c.g, c.b };
+
+        case LED_ORDER_BRG:
+            return (rgb_t){ c.b, c.r, c.g };
+
+        case LED_ORDER_GRB:
+        default:
+            return (rgb_t){ c.g, c.r, c.b };
+    }
 }
 
 // ==================================================
-// Lifecycle
+// Lifecycle (PUBLIC API)
 // ==================================================
 void led_strip_init(led_strip_t *strip)
 {
     if (!strip)
         return;
 
-    // Hardware init handled by core
+    // Default safety
+    if (strip->order > LED_ORDER_BRG)
+        strip->order = LED_ORDER_GRB;
+
+    // Hardware init handled by core layer
     led_strip_core_init(strip);
 }
 
@@ -76,7 +94,8 @@ void led_strip_set_pixel(
     if (!strip || index >= strip->length)
         return;
 
-    led_strip_core_set_pixel(strip, index, scale(color));
+    rgb_t mapped = scale_and_reorder(strip, color);
+    led_strip_core_set_pixel(strip, index, mapped);
 }
 
 void led_strip_fill(
@@ -87,10 +106,10 @@ void led_strip_fill(
     if (!strip)
         return;
 
-    rgb_t scaled = scale(color);
+    rgb_t mapped = scale_and_reorder(strip, color);
 
     for (size_t i = 0; i < strip->length; i++)
-        led_strip_core_set_pixel(strip, i, scaled);
+        led_strip_core_set_pixel(strip, i, mapped);
 
     led_strip_core_refresh(strip);
 }

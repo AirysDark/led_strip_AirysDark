@@ -36,6 +36,16 @@ static inline void encode_pixel(uint8_t *dst, rgb_t c)
 }
 
 // ==================================================
+// Reset symbol (static, persistent)
+// ==================================================
+static const rmt_symbol_word_t reset_symbol = {
+    .level0 = 0,
+    .duration0 = NS_TO_TICKS(RESET_US * 1000),
+    .level1 = 0,
+    .duration1 = 0,
+};
+
+// ==================================================
 // CORE INIT
 // ==================================================
 esp_err_t led_strip_core_init(led_strip_t *strip)
@@ -88,13 +98,6 @@ esp_err_t led_strip_core_init(led_strip_t *strip)
     rmt_copy_encoder_config_t copy_cfg = {};
     CHECK(rmt_new_copy_encoder(&copy_cfg, &strip->reset_encoder));
 
-    static const rmt_symbol_word_t reset_symbol = {
-        .level0 = 0,
-        .duration0 = NS_TO_TICKS(RESET_US * 1000),
-        .level1 = 0,
-        .duration1 = 0,
-    };
-
     // -----------------------------
     // Composite encoder (data + reset)
     // -----------------------------
@@ -111,7 +114,7 @@ esp_err_t led_strip_core_init(led_strip_t *strip)
     CHECK(rmt_new_composite_encoder(&comp_cfg, &strip->composite_encoder));
     CHECK(rmt_enable(strip->channel));
 
-    ESP_LOGI(TAG, "LED strip core initialized (reset encoder enabled)");
+    ESP_LOGI(TAG, "LED strip core initialized (composite encoder)");
     return ESP_OK;
 }
 

@@ -28,20 +28,17 @@ typedef struct led_strip_t led_strip_t;
 /* -------------------------------------------------
    Core lifecycle
 --------------------------------------------------*/
-
 esp_err_t led_strip_core_init(led_strip_t *strip);
 esp_err_t led_strip_core_free(led_strip_t *strip);
 
 /* -------------------------------------------------
    Core output
 --------------------------------------------------*/
-
 esp_err_t led_strip_core_refresh(led_strip_t *strip);
 
 /* -------------------------------------------------
    Core pixel write (RAW BYTES)
 --------------------------------------------------*/
-
 esp_err_t led_strip_core_set_pixel(
     led_strip_t *strip,
     size_t index,
