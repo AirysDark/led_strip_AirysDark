@@ -11,8 +11,10 @@
 
 /*
     PUBLIC API = helper layer
+
     Any file that includes led_strip.h
-    automatically gets helper functions
+    automatically gets the helper functions
+    implemented in led_strip_func.c
 */
 #include "led_strip_func.h"
 
@@ -37,26 +39,33 @@ typedef enum {
 } led_strip_order_t;
 
 // ==================================================
-// Strip descriptor (shared between layers)
+// Strip descriptor (shared between core + helper)
 // ==================================================
 typedef struct led_strip_t {
+    // Logical configuration
     led_strip_type_t      type;
     led_strip_order_t     order;
-    uint8_t               brightness;   // 0–255 (handled by helper)
+
+    // Brightness (0?255)
+    // Applied by helper layer, stored here for per-strip state
+    uint8_t               brightness;
+
     size_t                length;
     gpio_num_t            gpio;
 
-    // --- RMT core ---
+    // --- RMT core handles ---
     rmt_channel_handle_t  channel;
     rmt_encoder_handle_t  encoder;
 
-    uint8_t              *buf;           // length * 3 bytes (RAW GRB)
+    // Raw pixel buffer (GRB, unscaled)
+    uint8_t              *buf;   // length * 3 bytes
 } led_strip_t;
 
 /* ==================================================
-   CORE LAYER (PRIVATE – helper only)
-   DO NOT call directly from app code
-================================================== */
+   CORE (PRIVATE ? INTERNAL USE ONLY)
+   Helper layer calls these.
+   User code MUST NOT call them directly.
+   ================================================== */
 
 esp_err_t led_strip_core_init(led_strip_t *strip);
 esp_err_t led_strip_core_free(led_strip_t *strip);
@@ -66,22 +75,6 @@ esp_err_t led_strip_core_set_pixel(
     size_t index,
     rgb_t color
 );
-
-#ifdef __cplusplus
-}
-#endif    rmt_encoder_handle_t  encoder;
-
-    uint8_t              *buf;
-} led_strip_t;
-
-/* ==================================================
-   CORE (PRIVATE ? INTERNAL ONLY)
-   ================================================== */
-
-esp_err_t led_strip_core_init(led_strip_t *strip);
-esp_err_t led_strip_core_free(led_strip_t *strip);
-esp_err_t led_strip_core_refresh(led_strip_t *strip);
-esp_err_t led_strip_core_set_pixel(led_strip_t *strip, size_t index, rgb_t color);
 
 #ifdef __cplusplus
 }
