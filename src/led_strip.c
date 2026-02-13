@@ -24,7 +24,7 @@
 #define CHECK_ARG(x) do { if (!(x)) return ESP_ERR_INVALID_ARG; } while (0)
 
 // ==================================================
-// Encode pixel (brightness + order)
+// Encode one pixel (brightness + order)
 // ==================================================
 static inline void encode_pixel(
     uint8_t *dst,
@@ -97,14 +97,16 @@ esp_err_t led_strip_init(led_strip_t *strip)
     CHECK(rmt_new_bytes_encoder(&enc_cfg, &strip->encoder));
     CHECK(rmt_enable(strip->channel));
 
+    // -----------------------------
     // Defaults
+    // -----------------------------
     if (strip->brightness == 0)
         strip->brightness = 255;
 
     if (strip->order > LED_ORDER_BRG)
         strip->order = LED_ORDER_GRB;
 
-    ESP_LOGI(TAG, "LED strip initialized (RMT TX, IDF 5.x)");
+    ESP_LOGI(TAG, "LED strip initialized (RMT TX, ESP-IDF 5.x)");
     return ESP_OK;
 }
 
@@ -133,7 +135,7 @@ esp_err_t led_strip_free(led_strip_t *strip)
 }
 
 // ==================================================
-// REFRESH
+// REFRESH (send buffer to LEDs)
 // ==================================================
 esp_err_t led_strip_refresh(led_strip_t *strip)
 {

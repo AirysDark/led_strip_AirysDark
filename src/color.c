@@ -1,8 +1,11 @@
 #include "color.h"
 
 // --------------------------------------------------
-// Predefined RGB colors (flash-resident, zero RAM cost)
+// Predefined RGB colors
+// - const ? stored in flash
+// - zero RAM cost
 // --------------------------------------------------
+
 const rgb_t COLOR_RED     = { 255,   0,   0 };
 const rgb_t COLOR_GREEN   = {   0, 255,   0 };
 const rgb_t COLOR_BLUE    = {   0,   0, 255 };

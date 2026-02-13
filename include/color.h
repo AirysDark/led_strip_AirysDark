@@ -16,7 +16,7 @@ typedef struct {
 } rgb_t;
 
 // --------------------------------------------------
-// Predefined colors (stored in flash, defined in color.c)
+// Predefined colors (flash-resident, defined in color.c)
 // --------------------------------------------------
 extern const rgb_t COLOR_RED;
 extern const rgb_t COLOR_GREEN;
@@ -28,7 +28,9 @@ extern const rgb_t COLOR_CYAN;
 extern const rgb_t COLOR_MAGENTA;
 
 // --------------------------------------------------
-// Luma helper (used for RGBW or brightness math)
+// Luma helper
+// - Used for brightness math or RGBW derivation
+// - Inline, zero overhead
 // --------------------------------------------------
 static inline uint8_t rgb_luma(rgb_t c)
 {
